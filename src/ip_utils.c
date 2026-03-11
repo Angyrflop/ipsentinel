@@ -47,7 +47,7 @@ void dynArray_init(struct dynArray *arr)
         arr->size = 0;
         ipHandler *tmp = (ipHandler *)malloc(arr->capacity * sizeof(ipHandler));
         if (tmp == NULL) {
-                printf("[MEMORY] Unable to start array");
+                printf("[MEMORY] Unable to start array\n");
                 return;
         }
         arr->data = tmp;
@@ -83,6 +83,11 @@ void checkCallCount(ipHandler *h)
                 h->flags = IP_FLAG_SCANNER | IP_FLAG_BLACKLISTED; /*20*/
 }
 
+void newEntry()
+{
+
+}
+
 int main()
 {       
         /*
@@ -90,20 +95,36 @@ int main()
         * The main function here will be replaced, it is currently just used for TESTING
         */
         const char testIpv4[] = "191.128.1.1";
-        ipHandler entry1;
-        IpHandler_init(&entry1);
-        inet_pton(AF_INET, testIpv4, &entry1.address.ipv4);
-        entry1.callCount = 12;
-        checkCallCount(&entry1);
-
         struct dynArray arr;
         dynArray_init(&arr);
-        dynArray_push(&arr, entry1);
+
+        for (int i = 0; i < 5; i++)
+        {
+        ipHandler entry;
+        IpHandler_init(&entry);
+        inet_pton(AF_INET, testIpv4, &entry.address.ipv4);
+        // entry.address.ipv4 = htonl(entry.address.ipv4); To reverse the byte order
+        entry.callCount = 12;
+        checkCallCount(&entry);
+        dynArray_push(&arr, entry);
+        }
 
         for (int i = 0; i < arr.size; i++) {
                 printf("entry[%d] flags: %d\n", i, arr.data[i].flags);
         }
 
+        FILE *out;
+        out = fopen(BAN_FILE_PATH, "wb");
+
+        if (out == NULL){
+                printf("Cannot open or create file.\n");
+                return 1;
+        }
+        printf("%zu\n", sizeof(ipHandler));
+        fwrite(&arr.size, sizeof(int), 1, out);
+        fwrite(arr.data, sizeof(ipHandler), arr.size, out);
+        /*fwrite(checksum, sizeof(checksumig), 1)*/
+        fclose(out);
         // char str6[INET6_ADDRSTRLEN];
         // char tmp[INET6_ADDRSTRLEN];
         // inet_ntop(AF_INET6, &entryv6.address.ipv6, str6, INET6_ADDRSTRLEN);

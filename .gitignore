@@ -39,3 +39,4 @@ Thumbs.db
 # Compiler output
 *.d
 *.su
+*.bin
