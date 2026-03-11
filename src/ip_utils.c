@@ -1,3 +1,4 @@
+// Copyright (c) goes to Jan Oliver Quant
 #include <stdlib.h>
 #include <stdio.h>
 #include <arpa/inet.h>
@@ -7,24 +8,24 @@
 
 enum IpFlags{
         IP_FLAG_NONE = 0,
-        IP_FLAG_INTERNAL = 1 << 0,
-        IP_FLAG_WHITELISTED = 1 << 1,
-        IP_FLAG_BLACKLISTED = 1 << 2,
-        IP_FLAG_MALICIOUS = 1 << 3,
-        IP_FLAG_FLAG_SCANNER = 1 << 4,
+        IP_FLAG_INTERNAL = 1 << 0,      /*1*/
+        IP_FLAG_WHITELISTED = 1 << 1,   /*2*/
+        IP_FLAG_BLACKLISTED = 1 << 2,   /*4*/
+        IP_FLAG_MALICIOUS = 1 << 3,     /*8*/
+        IP_FLAG_SCANNER = 1 << 4,       /*16*/
 };
 
 typedef struct
 {
-        bool isIpv6;
         union
         {
                 uint32_t ipv4;
                 uint8_t ipv6[16];
         } address;
         int callCount;
+        bool isIpv6;
         uint8_t flags;
-} ipHandler;
+} ipHandler;    /*24 bytes*/
 
 struct dynArray
 {
@@ -32,7 +33,6 @@ struct dynArray
         int size;
         int capacity;
 };
-
 
 void IpHandler_init(ipHandler *h)
 {
@@ -43,16 +43,27 @@ void IpHandler_init(ipHandler *h)
 
 void dynArray_init(struct dynArray *arr)
 {
-        arr->capacity = 4;
+        arr->capacity = START_CAPACITY;
         arr->size = 0;
-        arr->data = (ipHandler *)malloc(arr->capacity * sizeof(ipHandler));
+        ipHandler *tmp = (ipHandler *)malloc(arr->capacity * sizeof(ipHandler));
+        if (tmp == NULL) {
+                printf("[MEMORY] Unable to start array");
+                return;
+        }
+        arr->data = tmp;
 }
 
 void dynArray_push(struct dynArray *arr, ipHandler entry)
 {
+
         if (arr->size == arr->capacity) {
                 arr->capacity *= 2;
-                arr->data = (ipHandler *)realloc(arr->data, arr->capacity * sizeof(ipHandler));
+                ipHandler *tmp = (ipHandler *)realloc(arr->data, arr->capacity * sizeof(ipHandler));
+                if (tmp == NULL) {
+                        printf("[MEMORY] Not expanding dynArray. Blocking incoming requests\n");
+                        return;
+                }
+                arr->data = tmp;
         }
         arr->data[arr->size] = entry;
         arr->size++;
@@ -65,24 +76,33 @@ void dynArray_free(struct dynArray *arr)
         arr->size = 0;
         arr->capacity = 0;
 }
+        /*For testing again, will improve*/
+void checkCallCount(ipHandler *h)
+{
+        if (h->callCount >= MAX_CALLCOUNT)
+                h->flags = IP_FLAG_SCANNER | IP_FLAG_BLACKLISTED; /*20*/
+}
 
 int main()
-{
-        const char testIpv6[] = "2a01:0db8:85a3:0000:0000:8a2e:0370:7334";
+{       
+        /*
+        * ALL TEMPORARY!!!
+        * The main function here will be replaced, it is currently just used for TESTING
+        */
         const char testIpv4[] = "191.128.1.1";
         ipHandler entry1;
         IpHandler_init(&entry1);
         inet_pton(AF_INET, testIpv4, &entry1.address.ipv4);
-        entry1.flags = IP_FLAG_BLACKLISTED | IP_FLAG_MALICIOUS;
+        entry1.callCount = 12;
+        checkCallCount(&entry1);
+
         struct dynArray arr;
         dynArray_init(&arr);
         dynArray_push(&arr, entry1);
+
         for (int i = 0; i < arr.size; i++) {
                 printf("entry[%d] flags: %d\n", i, arr.data[i].flags);
         }
-        dynArray_free(&arr);
-        // entry = (ipHandler*)malloc(sizeof(ipHandler) + size * sizeof(int));
-
 
         // char str6[INET6_ADDRSTRLEN];
         // char tmp[INET6_ADDRSTRLEN];
@@ -92,5 +112,6 @@ int main()
         // printf("White: %s\n", WHITELISTED_FILE_PATH);
         // printf("Ban: %s\n", BAN_FILE_PATH);
 
+        dynArray_free(&arr);
         return 0;
 }
