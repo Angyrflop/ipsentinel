@@ -4,7 +4,10 @@
 #include <arpa/inet.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <openssl/evp.h>
+#include <sys/socket.h>
 #include "config_ip.h"
+#include "ip_utils.h" 
 
 enum IpFlags{
         IP_FLAG_NONE = 0,
@@ -15,116 +18,103 @@ enum IpFlags{
         IP_FLAG_SCANNER = 1 << 4,       /*16*/
 };
 
-typedef struct
+static void ipEntry_init(ipEntry *entry)
 {
-        union
-        {
-                uint32_t ipv4;
-                uint8_t ipv6[16];
-        } address;
-        int callCount;
-        bool isIpv6;
-        uint8_t flags;
-} ipHandler;    /*24 bytes*/
-
-struct dynArray
-{
-        ipHandler *data;
-        int size;
-        int capacity;
-};
-
-void IpHandler_init(ipHandler *h)
-{
-        h->isIpv6 = false;
-        h->flags = IP_FLAG_NONE;
-        h->callCount = 0;
+        entry->isIpv6 = false;
+        entry->flags = IP_FLAG_NONE;
+        entry->callCount = 0;
 }
 
-void dynArray_init(struct dynArray *arr)
+int dynArray_init(dynArray *arr)
 {
         arr->capacity = START_CAPACITY;
         arr->size = 0;
-        ipHandler *tmp = (ipHandler *)malloc(arr->capacity * sizeof(ipHandler));
+        ipEntry *tmp = (ipEntry *)malloc(arr->capacity * sizeof(ipEntry));
         if (tmp == NULL) {
                 printf("[MEMORY] Unable to start array\n");
-                return;
+                return 1;
         }
         arr->data = tmp;
+        return 0;
 }
 
-void dynArray_push(struct dynArray *arr, ipHandler entry)
+static int dynArray_push(dynArray *arr, ipEntry entry)
 {
 
         if (arr->size == arr->capacity) {
                 arr->capacity *= 2;
-                ipHandler *tmp = (ipHandler *)realloc(arr->data, arr->capacity * sizeof(ipHandler));
+                ipEntry *tmp = (ipEntry *)realloc(arr->data, arr->capacity * sizeof(ipEntry));
                 if (tmp == NULL) {
                         printf("[MEMORY] Not expanding dynArray. Blocking incoming requests\n");
-                        return;
+                        return 1;
                 }
                 arr->data = tmp;
         }
         arr->data[arr->size] = entry;
         arr->size++;
+        return 0;
 }
 
-void dynArray_free(struct dynArray *arr)
+void dynArray_free(dynArray *arr)
 {
         free(arr->data);
         arr->data = NULL;
         arr->size = 0;
         arr->capacity = 0;
 }
-        /*For testing again, will improve*/
-void checkCallCount(ipHandler *h)
+       /*For testing again, will improve*/
+void checkCallCount(ipEntry *entry)
 {
-        if (h->callCount >= MAX_CALLCOUNT)
-                h->flags = IP_FLAG_SCANNER | IP_FLAG_BLACKLISTED; /*20*/
+        if (entry->callCount >= MAX_CALLCOUNT)
+                entry->flags |= IP_FLAG_SCANNER | IP_FLAG_BLACKLISTED; /*20*/
 }
 
-void newEntry()
+int addIp(dynArray *arr, const char *ip)
 {
-
+    ipEntry entry;
+    ipEntry_init(&entry);
+    if (inet_pton(AF_INET, ip, &entry.address.ipv4) == 1) { 
+        dynArray_push(arr, entry);
+        return 0;
+    }
+    if (inet_pton(AF_INET6, ip, &entry.address.ipv6) == 1) {
+        entry.isIpv6 = true;
+        dynArray_push(arr, entry);
+        return 0;
+    }
+    return 1;
 }
 
-int main()
-{       
-        /*
-        * ALL TEMPORARY!!!
-        * The main function here will be replaced, it is currently just used for TESTING
-        */
-        const char testIpv4[] = "191.128.1.1";
-        struct dynArray arr;
-        dynArray_init(&arr);
 
-        for (int i = 0; i < 5; i++)
-        {
-        ipHandler entry;
-        IpHandler_init(&entry);
-        inet_pton(AF_INET, testIpv4, &entry.address.ipv4);
-        // entry.address.ipv4 = htonl(entry.address.ipv4); To reverse the byte order
-        entry.callCount = 12;
-        checkCallCount(&entry);
-        dynArray_push(&arr, entry);
-        }
+    /* To implement!!!*/
 
-        for (int i = 0; i < arr.size; i++) {
-                printf("entry[%d] flags: %d\n", i, arr.data[i].flags);
-        }
+        /*uint8_t checksum[EVP_MAX_MD_SIZE];
+        unsigned int checkSumLen;*/
 
-        FILE *out;
+        /*EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+        EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+        EVP_DigestUpdate(ctx, &arr.size, sizeof(int));
+        EVP_DigestUpdate(ctx, arr.data, sizeof(ipEntry) * arr.size);
+        EVP_DigestFinal_ex(ctx, checksum, &checkSumLen);*/
+        
+
+        /*FILE *out;
         out = fopen(BAN_FILE_PATH, "wb");
 
-        if (out == NULL){
+        if (out == NULL) {
                 printf("Cannot open or create file.\n");
-                return 1;
+                return -1;
         }
-        printf("%zu\n", sizeof(ipHandler));
+
+        fwrite(MAGIC, 1, MAGIC_LEN, out);
         fwrite(&arr.size, sizeof(int), 1, out);
-        fwrite(arr.data, sizeof(ipHandler), arr.size, out);
-        /*fwrite(checksum, sizeof(checksumig), 1)*/
+        fwrite(arr.data, sizeof(ipEntry), arr.size, out);
+        fwrite(checksum, checkSumLen, 1, out);
         fclose(out);
+
+        FILE *in;*/
+        
+
         // char str6[INET6_ADDRSTRLEN];
         // char tmp[INET6_ADDRSTRLEN];
         // inet_ntop(AF_INET6, &entryv6.address.ipv6, str6, INET6_ADDRSTRLEN);
@@ -133,6 +123,4 @@ int main()
         // printf("White: %s\n", WHITELISTED_FILE_PATH);
         // printf("Ban: %s\n", BAN_FILE_PATH);
 
-        dynArray_free(&arr);
-        return 0;
-}
+        /*EVP_MD_CTX_free(ctx);*/
