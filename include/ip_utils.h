@@ -23,6 +23,7 @@ typedef struct
 } dynArray;
 
 void dynArray_free(dynArray *arr);
+int dynArray_push(dynArray *arr, ipEntry entry);
 int addIp(dynArray *arr, const char *ip);
 
 #endif /*IP_UTILS_H*/

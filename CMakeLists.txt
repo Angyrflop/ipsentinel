@@ -8,6 +8,8 @@ find_package(OpenSSL REQUIRED)
 
 add_executable(${PROJECT_NAME}
 src/ip_utils.c
+src/read_write_handler.c
+src/checksum_handler.c
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)

@@ -1,9 +1,9 @@
 #ifndef CONFIG_IP_H
 #define CONFIG_IP_H
+    #include <stdint.h>
     #define MAX_CALLCOUNT  2000
     #define START_CAPACITY  4
-    #define BAN_FILE_PATH  "banned_ips.bin"
-    #define WHITELISTED_FILE_PATH  "whitelisted_ips.bin"
-    #define MAGIC "\x23\x37\x21\x50\x6f"
-    #define MAGIC_LEN 5
+    #define IP_FILE_PATH "ips.bin"
+    const uint64_t MAGIC = 0x0123456789ABCDEFULL;
 #endif  /*CONFIG_IP_H*/
+
