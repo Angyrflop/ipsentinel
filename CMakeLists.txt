@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(svr)
 
 find_package(OpenSSL REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(MHD REQUIRED libmicrohttpd)
 
 add_executable(${PROJECT_NAME}
 src/main.c
@@ -14,6 +16,6 @@ src/checksum_handler.c
 src/ip_utils.c
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE include)
-target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+target_include_directories(${PROJECT_NAME} PRIVATE include ${MHD_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto ${MHD_LIBRARIES})
 

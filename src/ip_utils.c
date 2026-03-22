@@ -1,4 +1,5 @@
 // Copyright (c) goes to Jan Oliver Quant
+#include <netinet/in.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <arpa/inet.h>
@@ -7,7 +8,9 @@
 #include <openssl/evp.h>
 #include <sys/socket.h>
 #include "config_ip.h"
-#include "ip_utils.h" 
+#include "ip_utils.h"
+#include <microhttpd.h>
+#include <unistd.h>
 
 enum IpFlags{
         IP_FLAG_NONE = 0,
@@ -68,19 +71,28 @@ void checkCallCount(ipEntry *entry)
                 entry->flags |= IP_FLAG_SCANNER | IP_FLAG_BLACKLISTED; /*20*/
 }
 
-int addIp(dynArray *arr, const char *ip)
+int addIp(dynArray *arr, const union MHD_ConnectionInfo *info)
 {
-    ipEntry entry;
-    ipEntry_init(&entry);
-    if (inet_pton(AF_INET, ip, &entry.address.ipv4) == 1) { 
+   if (info == NULL)
+       return -1;
+   struct sockaddr *addr = info->client_addr;
+   if (addr->sa_family == AF_INET) {
+        struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
+        ipEntry entry;
+        ipEntry_init(&entry);
+        entry.address.ipv4 = addr4->sin_addr;
         dynArray_push(arr, entry);
         return 0;
     }
-    if (inet_pton(AF_INET6, ip, &entry.address.ipv6) == 1) {
-        entry.isIpv6 = true;
-        dynArray_push(arr, entry);
-        return 0;
-    }
-    return -1;
+   if (addr->sa_family == AF_INET6) {
+       struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
+       ipEntry entry;
+       ipEntry_init(&entry);
+       entry.isIpv6 = true;
+       entry.address.ipv6 = addr6->sin6_addr;
+       dynArray_push(arr, entry);
+       return 0;
+   }
+   return -1;
 }
 
