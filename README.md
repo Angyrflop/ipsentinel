@@ -43,7 +43,7 @@ Edit the relevant config headers before building:
 ## TODO
 
 - [ ] Automatic IP ban integration
-- [ ] Writing and reading IP list
+- [x] Writing and reading IP list
 - [ ] Rate limiting
 - [ ] Anomaly detection
 - [x] Replace the dynamic array with a hash map
